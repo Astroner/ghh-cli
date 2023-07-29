@@ -1,4 +1,9 @@
-import { TaskEither } from "fp-ts/lib/TaskEither";
+import { ReaderTaskEither } from "fp-ts/lib/ReaderTaskEither";
 import { OperationName, OperationConfigs } from "../model";
 
-export type Executor<Name extends OperationName> = (config: OperationConfigs[Name]) => TaskEither<Error, void>
+export type ExecutionContext = {
+    appDirectory: string;
+    dataFilePath: string;
+}
+
+export type Executor<Name extends OperationName> = (config: OperationConfigs[Name]) => ReaderTaskEither<ExecutionContext, Error, void>

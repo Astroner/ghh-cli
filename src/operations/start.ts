@@ -1,5 +1,5 @@
-import * as TaskEither from "fp-ts/lib/TaskEither";
+import * as ReaderTaskEither from "fp-ts/lib/ReaderTaskEither";
 
 import { Executor } from "./types";
 
-export const start: Executor<"start"> = () => TaskEither.left(new Error("Start is not implemented"))
+export const start: Executor<"start"> = () => ReaderTaskEither.left(new Error("Start is not implemented"))
