@@ -10,8 +10,8 @@ import { status } from "./status";
 import { clean } from "./clean";
 
 type Executors = {
-    [K in keyof OperationConfigs]: Executor<K>
-}
+    [K in keyof OperationConfigs]: Executor<K>;
+};
 
 const executors: Executors = {
     launch,
@@ -21,9 +21,9 @@ const executors: Executors = {
     stop,
     help,
     status,
-    clean
-}
+    clean,
+};
 
 export const runOperation = (operation: Operation) => {
     return executors[operation.name](operation.config as never);
-}
+};
