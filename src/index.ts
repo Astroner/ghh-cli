@@ -46,9 +46,5 @@ if(require.main === module)
         TaskEither.fold(
             e => Task.fromIO(Console.error(chalk.red(e.message))),
             () => Task.of(null)
-        ),
-        f => {
-            fs.mkdirSync(path.resolve(process.env.HOME ?? "~", "ghh"));
-            f();
-        }
-    )
+        )
+    )()
