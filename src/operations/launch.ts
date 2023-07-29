@@ -13,7 +13,7 @@ import { chalk } from "../chalk";
 import { readDataFile, writeDataFile } from "./utils/dataFile";
 
 export const launch: Executor<"launch"> = () => (ctx) => pipe(
-    Console.log(chalk.bgGreen.black("Initiating the launching sequence")),
+    Console.log(chalk.bgGreen.black("Initiating the launch sequence")),
     TaskEither.fromIO,
     TaskEither.chain(() => TaskEither.Do),
     TaskEither.bind("appData", () => readDataFile(ctx.dataFilePath)),

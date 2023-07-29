@@ -29,5 +29,5 @@ export const down: Executor<"down"> = () => ctx => pipe(
         }),
         () => new Error(`Failed to delete data file at "${ctx.dataFilePath}"`),
     )),
-    TaskEither.map(constUndefined)
+    TaskEither.chain(() => TaskEither.fromIO(Console.log(chalk.green("Done"))))
 )
