@@ -43,11 +43,7 @@ export const launch: Executor<"launch"> = () => (ctx) => pipe(
         ),
         TaskEither.fromIOEither
     )),
-    TaskEither.bind("pid", flow(
-        ({ subprocess }) => subprocess.pid,
-        TaskEither.fromNullable(new Error("Failed to get mother-ship PID")),
-    )),
-    TaskEither.bind("port", flow(
+    TaskEither.bind("config", flow(
         ({ subprocess }) => TaskEither.tryCatch(
             () => new Promise<unknown>((resolve, reject) => {
                 subprocess.once("message", (data) => {
@@ -60,16 +56,16 @@ export const launch: Executor<"launch"> = () => (ctx) => pipe(
             () => new Error("Failed to get mother-ship port")
         ),
         TaskEither.chain(flow(
-            t.number.decode,
+            t.type({ port: t.number, pid: t.number, token: t.string }).decode,
             Either.mapLeft(() => new Error("Failed to decode signal from mother-ship")),
             TaskEither.fromEither
         ))
     )),
-    TaskEither.chainFirst(({ pid, port }) => TaskEither.fromIO(pipe(
-        Console.log(chalk.green(`Mother-ship launched\n  Port: ${port}\n  PID: ${pid}`)),
+    TaskEither.chainFirst(({ config }) => TaskEither.fromIO(pipe(
+        Console.log(chalk.green(`Mother-ship launched\n  Port: ${config.port}\n  PID: ${config.pid}`)),
     ))),
     TaskEither.chain(flow(
-        ({ port, pid }) => ({ port, pid }),
+        ({ config }) => config,
         writeDataFile(ctx.dataFilePath)
     ))
 )

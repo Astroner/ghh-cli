@@ -17,7 +17,11 @@ export const land: Executor<"land"> = () => ctx => pipe(
     TaskEither.chain(() => readDataFile(ctx.dataFilePath)),
     TaskEither.chain(TaskEither.fromNullable(new Error("Mother-ship is not launched"))),
     TaskEither.chain(data => TaskEither.tryCatch(
-        () => axios.post(`http://127.0.0.1:${data.port}/land`),
+        () => axios.post(`http://127.0.0.1:${data.port}/land`, null, {
+            headers: {
+                Authorization: data.token
+            }
+        }),
         (err) => new Error("Failed to call the mother-ship: " + err)
     )),
     TaskEither.chain(() => TaskEither.tryCatch(

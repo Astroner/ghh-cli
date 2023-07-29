@@ -1,16 +1,15 @@
 import { AddressInfo } from "net";
+import { randomBytes } from "crypto";
 
 import * as express from "express";
 
 const app = express();
 
+const token = randomBytes(32).toString('hex');
+
 app.use("*", (req, res, next) => {
-    if(req.ip !== "::1" && req.ip !== "127.0.0.1" && req.ip !== "::ffff:127.0.0.1") {
-        console.log(`Request from external API: ${req.ip}`)
-        res.status(404).send();
-    } else {
-        next();
-    }
+    if(req.headers.authorization !== token) res.status(401).send();
+    else next();
 })
 
 app.get("/ping", (_, res) => res.send("pong"));
@@ -26,5 +25,9 @@ const server = app.listen(() => {
 
     console.log(`Starting on port ${addr.port} with PID ${process.pid}`)
 
-    process.send && process.send(addr.port)
+    process.send && process.send({
+        port: addr.port,
+        pid: process.pid,
+        token
+    })
 });

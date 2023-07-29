@@ -8,7 +8,8 @@ import * as t from "io-ts";
 
 const dataFileType = t.type({
     port: t.number,
-    pid: t.number
+    pid: t.number,
+    token: t.string
 })
 
 export type DataFile = t.TypeOf<typeof dataFileType>;

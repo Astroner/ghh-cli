@@ -18,7 +18,11 @@ export const status: Executor<"status"> = () => ctx => pipe(
     ),
     TaskEither.chain((data) => pipe(
         TaskEither.tryCatch(
-            () => axios.get(`http://127.0.0.1:${data.port}/ping`),
+            () => axios.get(`http://127.0.0.1:${data.port}/ping`, {
+                headers: {
+                    Authorization: data.token
+                }
+            }),
             () => new Error("ONLINE_ERROR")
         ),
         TaskEither.map(constant(chalk.green(`Mother-ship is ONLINE\n  Port: ${data.port}\n  PID: ${data.pid}`))),
