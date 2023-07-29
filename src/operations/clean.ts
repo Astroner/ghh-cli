@@ -35,12 +35,12 @@ export const clean: Executor<"clean"> = () => ctx => pipe(
     ),
     TaskEither.chainFirst(() => TaskEither.tryCatch(
         () => new Promise<void>((resolve, reject) => {
-            fs.rm(ctx.dataFilePath, err => {
+            fs.unlink(ctx.dataFilePath, err => {
                 if(!err || err.code === "ENOENT") resolve();
-                else reject()
+                else reject(err)
             })
         }),
-        () => new Error(`Failed to delete data file at "${ctx.dataFilePath}"`),
+        (err) => new Error(`Failed to delete data file at "${ctx.dataFilePath}"\n` + err),
     )),
     TaskEither.chain(message => TaskEither.fromIO(Console.log(message)))
 )

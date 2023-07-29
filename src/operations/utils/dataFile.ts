@@ -24,7 +24,7 @@ export const readDataFile = (path: string): TaskEither.TaskEither<Error, DataFil
                 else resolve(data.toString())
             })
         }),
-        () => new Error(`Cannot access "${path}"`)
+        (err) => new Error(`Cannot access "${path}"\n` + err)
     ),
     TaskEither.chain(TaskEither.fromNullable(new Error("NULL"))),
     TaskEither.chain(flow(
@@ -54,6 +54,6 @@ export const writeDataFile = (path: string) => (data: DataFile) => pipe(
                 else resolve()
             })
         }),
-        constant(new Error(`Failed to write new data to the data file "${path}"`))
-    ))
+        (err) => new Error(`Failed to write new data to the data file "${path}"\n${err}`)
+    )),
 )

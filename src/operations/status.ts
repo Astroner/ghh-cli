@@ -9,7 +9,7 @@ import { constUndefined, constant, pipe } from "fp-ts/lib/function";
 
 
 export const status: Executor<"status"> = () => ctx => pipe(
-    Console.info(chalk.bgBlue.black("Retrieving mother-ship status")),
+    Console.info(chalk.blue("Retrieving mother-ship status...")),
     TaskEither.fromIO,
     TaskEither.chain(() => readDataFile(ctx.dataFilePath)),
     TaskEither.filterOrElse(

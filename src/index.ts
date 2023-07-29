@@ -24,8 +24,8 @@ export const command = flow(
 if(require.main === module)
     pipe(
         {
-            appDirectory: path.resolve(process.env.HOME ?? "~", "ghh"),
-            dataFilePath: path.resolve(process.env.HOME ?? "~", "./ghh/", "data.json"),
+            appDirectory: path.resolve(process.env.HOME ?? "~", ".ghh"),
+            dataFilePath: path.resolve(process.env.HOME ?? "~", "./.ghh/", "data.json"),
         },
         pipe(
             ReaderTaskEither.ask<ExecutionContext>(),
@@ -34,10 +34,10 @@ if(require.main === module)
                     () => new Promise<void>((resolve, reject) => {
                         fs.mkdir(ctx.appDirectory, (err) => {
                             if(!err || err.code === "EEXIST") resolve()
-                            else reject()
+                            else reject(err)
                         })
                     }),
-                    () => new Error(`Failed to create data directory at ${ctx.appDirectory}`)
+                    (err) => new Error(`Failed to create data directory at ${ctx.appDirectory}\n${err}`)
                 ),
                 ReaderTaskEither.fromTaskEither,
             )),

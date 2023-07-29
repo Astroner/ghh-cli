@@ -4,6 +4,7 @@ import * as fs from "fs";
 
 import * as TaskEither from "fp-ts/lib/TaskEither";
 import * as Console from "fp-ts/lib/Console";
+import * as IOEither from "fp-ts/lib/IOEither";
 import * as Either from "fp-ts/lib/Either";
 import { flow, pipe } from "fp-ts/lib/function";
 import * as t from "io-ts";
@@ -21,44 +22,40 @@ export const launch: Executor<"launch"> = () => (ctx) => pipe(
         ({ appData }) => !appData,
         () => new Error("Mother-ship is already launched"),
     ),
-    TaskEither.bind("process", () => TaskEither.tryCatch(
-        () => new Promise<ChildProcess>((resolve, reject) => {
-
-            const process = fork(path.resolve(__dirname, "../mother-ship/"), {
-                detached: true,
-                stdio: [
-                    0,
-                    fs.openSync(path.resolve(ctx.appDirectory, "mother-ship-logs.txt"), "w+"),
-                    fs.openSync(path.resolve(ctx.appDirectory, "mother-ship-errors.txt"), "w+"),
-                    'ipc'
-                ]
-            });
-
-            process.unref();
-
-            process.once("spawn", () => {
-                process.removeAllListeners();
-                resolve(process);
-            })
-            process.once("error", (err) => {
-                reject(err)
-            })
-        }),
-        (err: any) => new Error("Failed to start the mother-ship: " + err.message)
+    TaskEither.bind("subprocess", flow(
+        () => IOEither.tryCatch(
+            () => {
+                const subprocess = fork(path.resolve(__dirname, "../mother-ship/"), {
+                    detached: true,
+                    stdio: [
+                        0,
+                        fs.openSync(path.resolve(ctx.appDirectory, "mother-ship-logs.txt"), "w+"),
+                        fs.openSync(path.resolve(ctx.appDirectory, "mother-ship-errors.txt"), "w+"),
+                        'ipc'
+                    ]
+                });
+    
+                subprocess.unref();
+    
+                return subprocess;
+            },
+            (err: any) => new Error("Failed to start the mother-ship: " + err.message)
+        ),
+        TaskEither.fromIOEither
     )),
     TaskEither.bind("pid", flow(
-        ({ process }) => process.pid,
+        ({ subprocess }) => subprocess.pid,
         TaskEither.fromNullable(new Error("Failed to get mother-ship PID")),
     )),
     TaskEither.bind("port", flow(
-        ({ process }) => TaskEither.tryCatch(
+        ({ subprocess }) => TaskEither.tryCatch(
             () => new Promise<unknown>((resolve, reject) => {
-                process.once("message", (data) => {
-                    process.removeAllListeners();
-                    process.channel?.unref();
+                subprocess.once("message", (data) => {
+                    subprocess.removeAllListeners();
+                    subprocess.disconnect();
                     resolve(data);
                 })
-                process.once("error", () => reject())
+                subprocess.once("error", () => reject())
             }),
             () => new Error("Failed to get mother-ship port")
         ),
