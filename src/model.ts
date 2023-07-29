@@ -1,5 +1,5 @@
 export type OperationConfigs = {
-    boot: null,
+    launch: null,
     down: null,
     start: {
         name?: string;
@@ -11,7 +11,9 @@ export type OperationConfigs = {
     ls: null;
     help: {
         operation?: string;
-    }
+    },
+    status: null;
+    clean: null;
 }
 
 export type OperationName = keyof OperationConfigs;

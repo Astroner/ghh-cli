@@ -12,8 +12,8 @@ import { OperationName, Operation } from "./model";
 const optionalString = t.union([t.string, t.undefined]);
 
 const decoders: Record<OperationName, (parsed: parse.ParsedArgs) => Either.Either<Error, Operation>> = {
-    boot: () => Either.of({
-        name: "boot",
+    launch: () => Either.of({
+        name: "launch",
         config: null
     }),
     down: () => Either.of({
@@ -63,7 +63,15 @@ const decoders: Record<OperationName, (parsed: parse.ParsedArgs) => Either.Eithe
                 operation
             }
         }))
-    ) 
+    ),
+    status: () => Either.of({
+        name: "status",
+        config: null
+    }),
+    clean: () => Either.of({
+        name: "clean",
+        config: null
+    })
 }
 
 const getOperation = flow(
