@@ -16,8 +16,8 @@ const decoders: Record<OperationName, (parsed: parse.ParsedArgs) => Either.Eithe
         name: "launch",
         config: null
     }),
-    down: () => Either.of({
-        name: "down",
+    land: () => Either.of({
+        name: "land",
         config: null
     }),
     start: (parsed) => pipe(

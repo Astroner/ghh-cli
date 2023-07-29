@@ -11,13 +11,13 @@ import { Executor } from "./types";
 import { readDataFile } from "./utils/dataFile";
 import { chalk } from "../chalk";
 
-export const down: Executor<"down"> = () => ctx => pipe(
+export const land: Executor<"land"> = () => ctx => pipe(
     Console.log(chalk.bgYellow.black("Landing the mother-ship")),
     TaskEither.fromIO,
     TaskEither.chain(() => readDataFile(ctx.dataFilePath)),
     TaskEither.chain(TaskEither.fromNullable(new Error("Mother-ship is not launched"))),
     TaskEither.chain(data => TaskEither.tryCatch(
-        () => axios.post(`http://127.0.0.1:${data.port}/down`),
+        () => axios.post(`http://127.0.0.1:${data.port}/land`),
         (err) => new Error("Failed to call the mother-ship: " + err)
     )),
     TaskEither.chain(() => TaskEither.tryCatch(

@@ -1,6 +1,6 @@
 export type OperationConfigs = {
     launch: null,
-    down: null,
+    land: null,
     start: {
         name?: string;
         configPath: string;

@@ -9,10 +9,10 @@ import { command } from "../src/";
 
 pipe(
     {
-        appDirectory: resolve(__dirname, "data"),
-        dataFilePath: resolve(__dirname, "data", "data.json")
+        appDirectory: __dirname,
+        dataFilePath: resolve(__dirname, "./data.json")
     },
-    command(["clean"]),
+    command(["status"]),
     TaskEither.fold(
         e => Task.fromIO(Console.error(e)),
         () => Task.fromIO(Console.log("Done")),

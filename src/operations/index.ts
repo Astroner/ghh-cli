@@ -1,6 +1,6 @@
 import { Operation, OperationConfigs } from "../model";
 import { launch } from "./launch";
-import { down } from "./down";
+import { land } from "./land";
 import { help } from "./help";
 import { ls } from "./ls";
 import { start } from "./start";
@@ -15,7 +15,7 @@ type Executors = {
 
 const executors: Executors = {
     launch,
-    down,
+    land,
     ls,
     start,
     stop,

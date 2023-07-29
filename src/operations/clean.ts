@@ -20,7 +20,7 @@ export const clean: Executor<"clean"> = () => ctx => pipe(
     ),
     TaskEither.chain((data) => pipe(
         TaskEither.tryCatch(
-            () => axios.get(`http://127.0.0.1:${data.port}/down`),
+            () => axios.get(`http://127.0.0.1:${data.port}/land`),
             () => new Error("CANNOT_CALL")
         ),
     )),

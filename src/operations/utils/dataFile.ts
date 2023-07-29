@@ -56,4 +56,13 @@ export const writeDataFile = (path: string) => (data: DataFile) => pipe(
         }),
         (err) => new Error(`Failed to write new data to the data file "${path}"\n${err}`)
     )),
+    TaskEither.chain(str => TaskEither.tryCatch(
+        () => new Promise<void>((resolve, reject) => {
+            fs.chmod(path, fs.constants.S_IRUSR | fs.constants.S_IWUSR, (err) => {
+                if(err) reject(err)
+                else resolve()
+            })
+        }),
+        (err) => new Error(`Failed to write new data to the data file "${path}"\n${err}`)
+    ))
 )
