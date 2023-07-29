@@ -8,7 +8,10 @@ export type OperationConfigs = {
     stop: {
         name: string;
     };
-    ls: null
+    ls: null;
+    help: {
+        operation?: string;
+    }
 }
 
 export type OperationName = keyof OperationConfigs;

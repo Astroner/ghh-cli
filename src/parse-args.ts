@@ -3,6 +3,7 @@ import * as parse from "minimist"
 import { constant, flow, pipe } from "fp-ts/lib/function";
 import * as Either from "fp-ts/lib/Either";
 import * as Array from "fp-ts/lib/Array";
+import * as Option from "fp-ts/lib/Option";
 
 import * as t from 'io-ts';
 
@@ -36,22 +37,33 @@ const decoders: Record<OperationName, (parsed: parse.ParsedArgs) => Either.Eithe
             config,
         }))
     ),
-    stop: (parsed) => pipe(
-        Either.Do,
-        Either.bind("name", flow(
-            () => parsed._,
-            Array.lookup(1),
-            Either.fromOption(() => new Error("Application name is not provided"))
-        )),
-        Either.map(config => ({
+    stop: flow(
+        parsed => parsed._,
+        Array.lookup(1),
+        Either.fromOption(() => new Error("Application name is not provided")),
+        Either.map(appName => ({
             name: "stop",
-            config,
+            config: {
+                name: appName
+            },
         }))
     ),
     ls: () => Either.of({
         name: "ls",
         config: null
-    })
+    }),
+    help: flow(
+        parsed => parsed._,
+        Array.lookup(1),
+        Option.toUndefined,
+        Either.of,
+        Either.map(operation => ({
+            name: "help",
+            config: {
+                operation
+            }
+        }))
+    ) 
 }
 
 const getOperation = flow(

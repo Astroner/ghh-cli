@@ -9,14 +9,16 @@ import { parseArgs } from "./parse-args";
 import { runOperation } from "./operations";
 
 
-const bootstrap = flow(
+export const bootstrap = flow(
     parseArgs,
     TaskEither.fromEither,
     TaskEither.chain(runOperation),
     TaskEither.fold(
         e => Task.fromIO(Console.log(`Failure: ${e.message}`)),
         e => Task.fromIO(Console.log(`Success`)),
-    )
+    ),
+    task => task()
 )
 
-bootstrap(process.argv.slice(2))();
+if(require.main === module)
+    bootstrap(process.argv.slice(2));

@@ -1,6 +1,7 @@
 import { Operation, OperationConfigs } from "../model";
 import { boot } from "./boot";
 import { down } from "./down";
+import { help } from "./help";
 import { ls } from "./ls";
 import { start } from "./start";
 import { stop } from "./stop";
@@ -16,6 +17,7 @@ const executors: Executors = {
     ls,
     start,
     stop,
+    help,
 }
 
 export const runOperation = (operation: Operation) => {
