@@ -1,6 +1,6 @@
 {
   "name": "@dogonis/ghh-cli",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "main": "lib/index.js",
   "license": "MIT",
   "scripts": {
@@ -19,7 +19,6 @@
   },
   "dependencies": {
     "@dogonis/github-hook": "^1.0.8",
-    "@types/express": "^4.17.17",
     "axios": "^1.4.0",
     "chalk": "4.1.2",
     "express": "^4.18.2",
@@ -28,6 +27,7 @@
     "minimist": "^1.2.8"
   },
   "devDependencies": {
+    "@types/express": "^4.17.17",
     "@types/minimist": "^1.2.2",
     "@types/node": "^20.4.5",
     "del-cli": "^5.0.0",
