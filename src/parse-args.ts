@@ -70,6 +70,10 @@ const getOperation = flow(
     (args: parse.ParsedArgs) => Array.head(args._),
     Either.fromOption(constant(new Error("Operation is not provided"))),
     Either.filterOrElse(
+        item => item.length > 0,
+        constant(new Error("Operation is not provided"))
+    ),
+    Either.filterOrElse(
         (item): item is OperationName => item in decoders,
         item => new Error(`"${item}" is not a valid operation`)
     )

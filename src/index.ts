@@ -7,18 +7,19 @@ import * as Task from "fp-ts/lib/Task";
 import * as Console from "fp-ts/lib/Console";
 import { parseArgs } from "./parse-args";
 import { runOperation } from "./operations";
+import { chalk } from "./chalk";
 
 
-export const bootstrap = flow(
+export const command = flow(
     parseArgs,
     TaskEither.fromEither,
     TaskEither.chain(runOperation),
     TaskEither.fold(
-        e => Task.fromIO(Console.log(`Failure: ${e.message}`)),
-        e => Task.fromIO(Console.log(`Success`)),
+        e => Task.fromIO(Console.log(chalk.red(`Failure: ${e.message}`))),
+        e => Task.fromIO(Console.log(chalk.green(`Done`))),
     ),
     task => task()
 )
 
 if(require.main === module)
-    bootstrap(process.argv.slice(2));
+    command(process.argv.slice(2));
