@@ -2,10 +2,12 @@ import { AddressInfo } from "net";
 import { randomBytes } from "crypto";
 
 import * as express from "express";
+import { createWingRouter } from "./create-wing-router";
+import { HooksManager } from "./hooks-manager";
 
 const app = express();
 
-const token = randomBytes(32).toString("hex");
+const token = process.env.TOKEN ?? randomBytes(32).toString("hex");
 
 app.use("*", (req, res, next) => {
     if (req.headers.authorization !== token) res.status(401).send();
@@ -20,7 +22,12 @@ app.post("/land", (_, res) => {
     process.exit();
 });
 
-const server = app.listen(() => {
+
+app.use("/wing", createWingRouter(new HooksManager()))
+
+
+
+const server = app.listen(process.env.PORT, () => {
     const addr = server.address() as AddressInfo;
 
     console.log(`Starting on port ${addr.port} with PID ${process.pid}`);

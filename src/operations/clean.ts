@@ -31,7 +31,7 @@ export const clean: Executor<"clean"> = () => (ctx) =>
                                 },
                             },
                         ),
-                    (err) => (console.log(err), new Error("INACTIVE")),
+                    () => new Error("INACTIVE"),
                 ),
             ),
         ),

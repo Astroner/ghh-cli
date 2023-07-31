@@ -33,6 +33,9 @@ export const launch: Executor<"launch"> = () => (ctx) =>
                                 path.resolve(__dirname, "../mother-ship/"),
                                 {
                                     detached: true,
+                                    env: {
+                                        FORCE_COLOR: "1"
+                                    },
                                     stdio: [
                                         0,
                                         fs.openSync(

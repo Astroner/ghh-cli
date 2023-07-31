@@ -3,6 +3,7 @@ export type OperationConfigs = {
     land: null;
     start: {
         name?: string;
+        port: number;
         configPath: string;
     };
     stop: {

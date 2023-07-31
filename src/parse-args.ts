@@ -6,10 +6,25 @@ import * as Array from "fp-ts/lib/Array";
 import * as Option from "fp-ts/lib/Option";
 
 import * as t from "io-ts";
+import * as d from "io-ts/Decoder";
 
 import { OperationName, Operation } from "./model";
 
 const optionalString = t.union([t.string, t.undefined]);
+
+const StringToNumber: d.Decoder<string, number> = {
+    decode: str => pipe(
+        Either.of(+str),
+        Either.filterOrElse(
+            n => !Number.isNaN(n),
+            () => new Error("Not a number")
+        ),
+        Either.fold(
+            e => d.failure(str, e.message),
+            n => d.success(n)
+        )
+    )
+}
 
 const decoders: Record<
     OperationName,
@@ -45,6 +60,16 @@ const decoders: Record<
                     Array.lookup(1),
                     Either.fromOption(
                         () => new Error("Config path is not provided"),
+                    ),
+                ),
+            ),
+            Either.bind(
+                "port",
+                flow(
+                    () => parsed["p"],
+                    StringToNumber.decode,
+                    Either.mapLeft(
+                        () => new Error("Port(-p) should be "),
                     ),
                 ),
             ),
