@@ -7,7 +7,7 @@ import * as TaskEither from "fp-ts/lib/TaskEither";
 import * as Console from "fp-ts/lib/Console";
 
 import { Executor } from "./types";
-import { readDataFile } from "./utils/dataFile";
+import { readDataFile } from "../utils/dataFile";
 import { chalk } from "../chalk";
 
 export const land: Executor<"land"> = () => (ctx) =>

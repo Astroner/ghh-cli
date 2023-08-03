@@ -6,7 +6,7 @@ import { constUndefined, constant, pipe } from "fp-ts/lib/function";
 
 import { Executor } from "./types";
 import { chalk } from "../chalk";
-import { DataFile, readDataFile } from "./utils/dataFile";
+import { DataFile, readDataFile } from "../utils/dataFile";
 
 export const status: Executor<"status"> = () => (ctx) =>
     pipe(

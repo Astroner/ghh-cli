@@ -67,8 +67,8 @@ export const createWingRouter = (manager: HooksManager) => {
 
 
         res.write(JSON.stringify({ type: 'info', message: `Launching new wing:` }))
-        res.write(JSON.stringify({ type: 'info', message: `  Name: ${name}` }))
-        res.write(JSON.stringify({ type: 'info', message: `  Port: "${data.port}"` }))
+        res.write(JSON.stringify({ type: 'info', message: `  Name: "${name}"` }))
+        res.write(JSON.stringify({ type: 'info', message: `  Port: ${data.port}` }))
         res.write(JSON.stringify({ type: 'info', message: `  Config: "${data.config}"` }))
         res.write(JSON.stringify({ type: 'error', message: `No hangar found` }))
         res.end()

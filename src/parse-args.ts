@@ -48,6 +48,7 @@ const decoders: Record<
                 flow(
                     () => parsed["n"],
                     optionalString.asDecoder().decode,
+                    Either.map(s => s?.trim()),
                     Either.mapLeft(
                         () => new Error("Name(-n) should be a string"),
                     ),

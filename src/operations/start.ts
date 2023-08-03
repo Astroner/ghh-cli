@@ -1,15 +1,18 @@
 import * as path from "path";
 import * as fs from "fs";
 import axios from "axios";
+import { Readable } from "stream";
 
 import * as TaskEither from "fp-ts/lib/TaskEither";
 import * as Either from "fp-ts/lib/Either";
 import * as Console from "fp-ts/lib/Console";
 import * as Json from "fp-ts/lib/Json";
 import { flow, pipe } from "fp-ts/lib/function";
+import * as t from "io-ts";
 
 import { Executor } from "./types";
-import { readDataFile } from "./utils/dataFile";
+import { readDataFile } from "../utils/dataFile";
+import * as StreamEither from "../utils/StreamEither";
 import { chalk } from "../chalk";
 
 export const start: Executor<"start"> = (args) => ctx => pipe(
@@ -34,7 +37,7 @@ export const start: Executor<"start"> = (args) => ctx => pipe(
     )),
     TaskEither.chain(({ data, configPath }) => TaskEither.tryCatch(
         async () => {
-            const { data: stream } = await axios.post<fs.ReadStream>(`http://127.0.0.1:${data.port}/wing/start`, {
+            const { data: stream } = await axios.post<Readable>(`http://127.0.0.1:${data.port}/wing/start`, {
                 name: args.name,
                 port: args.port,
                 cwd: process.cwd(),
@@ -50,29 +53,34 @@ export const start: Executor<"start"> = (args) => ctx => pipe(
         },
         (err) => new Error("Cannot connect to the mother-ship:\n" + err)
     )),
-    TaskEither.chain(stream => TaskEither.tryCatch(
-        () => new Promise<void>((resolve, reject) => {
-            console.log(chalk.yellow("Connection established:"));
-            stream.on('data', (message: string) => {
-                const json = JSON.parse(message);
+    TaskEither.chainFirst(() => TaskEither.fromIO(Console.log(chalk.yellow("Connection established:")))),
+    TaskEither.chain<Error, Readable, void>(flow(
+        StreamEither.fromReadable,
+        StreamEither.map(data => data + ""),
+        StreamEither.chainEither(flow(
+            Json.parse,
+            Either.mapLeft(() => new Error("Failed to parse message from the mother-ship")),
+            Either.chain(flow(
+                t.type({
+                    type: t.union([t.literal("info"), t.literal("error")]),
+                    message: t.string,
+                }).decode,
+                Either.mapLeft(() => new Error("Failed to validate message from the mother-ship"))
+            )),
+        )),
+        StreamEither.tap(data => {
+            switch(data.type) {
+                case 'info':
+                    console.log(chalk.green(`> ${data.message}`))
+                    break;
 
-                switch(json.type) {
-                    case 'info':
-                        console.log(chalk.green(`> ${json.message}`))
-                        break;
-
-                    case 'error':
-                        console.log(chalk.red(`> ${json.message}`))
-                        break;
-                    
-                    default:
-                        console.log(chalk.red('> Unknown message'))
-                }
-            })
-            stream.once('end', () => (console.log(chalk.yellow('Connection closed')), resolve()))
-            stream.once('error', (err) => reject(err))
+                case 'error':
+                    console.log(chalk.red(`> ${data.message}`))
+                    break;
+            }
         }),
-        (err) => new Error(`Connection error: ${err}`)
+        StreamEither.tapEnd(() => console.log(chalk.yellow('Connection closed'))),
+        StreamEither.toTaskEither
     )),
     TaskEither.chain(() => TaskEither.fromIO(Console.log(chalk.green("Done"))))
 )

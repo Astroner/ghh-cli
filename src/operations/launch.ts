@@ -11,7 +11,7 @@ import * as t from "io-ts";
 
 import { Executor } from "./types";
 import { chalk } from "../chalk";
-import { readDataFile, writeDataFile } from "./utils/dataFile";
+import { readDataFile, writeDataFile } from "../utils/dataFile";
 
 export const launch: Executor<"launch"> = () => (ctx) =>
     pipe(
