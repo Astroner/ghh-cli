@@ -102,15 +102,18 @@ export const applicativeInstance: Applicative.Applicative1<"Stream"> = {
             return next(transform(arg))(result);
         }
 
-        subscribe((f: ((a: A) => B)) => (transform = f, update()))(fab);
-        subscribeEnd(() => {
-            end(result);
-        })(fab)
+        let ended = 0;
 
+        subscribe((f: ((a: A) => B)) => (transform = f, update()))(fab);
         subscribe((a: A) => (arg = a, update()))(fa);
-        subscribeEnd(() => {
-            end(result);
-        })(fa)
+
+
+        const endHandler = subscribeEnd(() => {
+            if(++ended == 2) end(result);
+        })
+
+        endHandler(fab)
+        endHandler(fa)
 
         return result;
     },
@@ -121,7 +124,7 @@ const { ap, apFirst, apSecond, map } = pipeable(applicativeInstance);
 export { ap, apFirst, apSecond, map };
 
 export const sequenceT = Apply.sequenceT(applicativeInstance)
-export const sequenceS = Apply.sequenceT(applicativeInstance)
+export const sequenceS = Apply.sequenceS(applicativeInstance)
 
 export const toTask = (stream: Stream<any>): Task.Task<void> => {
     return () => new Promise<void>((resolve) => {
