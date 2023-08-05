@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import * as path from "path";
 
 import { Router, json } from "express";
 import { HooksManager } from "./hooks-manager";
@@ -14,17 +15,21 @@ const CreateWingDTO = t.type({
     config: t.string
 })
 
-const nameFromPath = (path: string) => {
-    return "keka"
+const nameFromPath = (configPath: string) => {
+    const filename = path.basename(configPath);
+
+    return filename.slice(0, filename.lastIndexOf("."))
 }
+
+const asInfo = (message: string) => JSON.stringify({ type: 'info', message });
+const asError = (message: string) => JSON.stringify({ type: 'error', message });
 
 export const createWingRouter = (manager: HooksManager) => {
     const router = Router();
 
     router.use("/start", json());
 
-    router.post("/start", (req, res) => {
-        console.log("NEW_WING", req.body);
+    router.post("/start", async (req, res) => {
         const validation = CreateWingDTO.decode(req.body);
         if(Either.isLeft(validation)) return res.status(400).send("Incorrect data format");
 
@@ -33,7 +38,7 @@ export const createWingRouter = (manager: HooksManager) => {
         let name: string;
         if(data.name) {
             if(!manager.isNameFree(data.name)) {
-                res.write(JSON.stringify({ type: 'error', message: `Name ${data.name} is already in use` }));
+                res.write(asError(`Name ${data.name} is already in use`));
                 res.end();
                 return;
             }
@@ -52,7 +57,7 @@ export const createWingRouter = (manager: HooksManager) => {
         }
 
         if(!manager.isPortFree(data.port)) {
-            res.write(JSON.stringify({ type: 'error', message: `Port ${data.port} is already in use` }));
+            res.write(asError(`Port ${data.port} is already in use`));
             res.end();
             return;
         }
@@ -60,18 +65,59 @@ export const createWingRouter = (manager: HooksManager) => {
         const configFile = fs.readFileSync(data.config).toString();
         const configValidation = decodeConfig(JSON.parse(configFile));
         if(Either.isLeft(configValidation)) {
-            res.write(JSON.stringify({ type: 'error', message: `Config format miss-match` }));
+            res.write(asError(`Config format miss-match`));
             res.end();
             return;
         }
 
 
-        res.write(JSON.stringify({ type: 'info', message: `Launching new wing:` }))
-        res.write(JSON.stringify({ type: 'info', message: `  Name: "${name}"` }))
-        res.write(JSON.stringify({ type: 'info', message: `  Port: ${data.port}` }))
-        res.write(JSON.stringify({ type: 'info', message: `  Config: "${data.config}"` }))
-        res.write(JSON.stringify({ type: 'error', message: `No hangar found` }))
+        res.write(asInfo(`Launching new wing:`))
+        res.write(asInfo(`  Name  : "${name}"`))
+        res.write(asInfo(`  Port  : ${data.port}`))
+        res.write(asInfo(`  Config: "${data.config}"`))
+
+        try {
+            const childData = await manager.start(
+                name,
+                data.port,
+                data.cwd,
+                path.resolve(process.cwd(), `${name}-logs.txt`),
+                configValidation.right
+            )
+            
+            console.log("NEW_WING_SPAWNED", {
+                ...data,
+                ...childData,
+                name,
+            });
+
+            res.write(asInfo(`Launched with PID ${childData.pid}`))
+        } catch(e) {
+            console.log("FAILED_TO_SPAWN", e + "");
+            res.write(asError(e + ""))
+        }
+
         res.end()
+    })
+
+    router.post("/stop/:name", async (req, res) => {
+        if(manager.isNameFree(req.params.name)) {
+            res.write(asError(`Wing with name "${req.params.name}" doesn't exist`));
+            res.end();
+            return;
+        }
+
+        res.write(asInfo(`Landing wing "${req.params.name}"`));
+
+        try {
+            await manager.stop(req.params.name);
+            console.log("WING_LANDED", req.params.name);
+            res.write(asInfo(`Landed successfully`));
+        } catch(e) {
+            res.write(asError(`Failed to land the wing: \n${e}`));
+        }
+
+        res.end();
     })
 
     return router;

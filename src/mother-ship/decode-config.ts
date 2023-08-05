@@ -10,13 +10,13 @@ const decoder = t.type({
         label: t.union([t.undefined, t.string]),
         repos: t.union([t.undefined, t.array(t.string)]),
         branches: t.union([t.undefined, t.array(t.string)]),
-        projectPath: t.union([t.undefined, t.array(t.string)]),
-        envs: t.union([t.undefined, t.UnknownRecord]),
+        projectPath: t.union([t.undefined, t.string]),
+        envs: t.union([t.undefined, t.record(t.string, t.string)]),
         ghSecurityKey: t.union([t.undefined, t.string]),
         scripts: t.union([t.string, t.array(t.union([t.string, t.type({
             script: t.string,
             cwd: t.union([t.undefined, t.string]),
-            envs: t.union([t.undefined, t.UnknownRecord]),
+            envs: t.union([t.undefined, t.record(t.string, t.string)]),
         })]))])
     }))
 });

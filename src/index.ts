@@ -11,7 +11,6 @@ import * as Console from "fp-ts/lib/Console";
 import { parseArgs } from "./parse-args";
 import { runOperation } from "./operations";
 import { chalk } from "./chalk";
-import { ExecutionContext } from "./operations/types";
 
 export const command = flow(
     parseArgs,
@@ -29,29 +28,7 @@ if (require.main === module)
                 "data.json",
             ),
         },
-        pipe(
-            ReaderTaskEither.ask<ExecutionContext>(),
-            ReaderTaskEither.chainFirstW((ctx) =>
-                pipe(
-                    TaskEither.tryCatch(
-                        () =>
-                            new Promise<void>((resolve, reject) => {
-                                fs.mkdir(ctx.appDirectory, (err) => {
-                                    if (!err || err.code === "EEXIST")
-                                        resolve();
-                                    else reject(err);
-                                });
-                            }),
-                        (err) =>
-                            new Error(
-                                `Failed to create data directory at ${ctx.appDirectory}\n${err}`,
-                            ),
-                    ),
-                    ReaderTaskEither.fromTaskEither,
-                ),
-            ),
-            ReaderTaskEither.chain(() => command(process.argv.slice(2))),
-        ),
+        command(process.argv.slice(2)),
         TaskEither.fold(
             (e) => Task.fromIO(Console.error(chalk.red(e.message))),
             () => Task.of(null),
