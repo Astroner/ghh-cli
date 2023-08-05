@@ -16,10 +16,6 @@ const boot = async () => {
 
 void boot()
     .then((addr) => {
-        console.log(chalk.green(`Wing launched`))
-        console.log(chalk.green(`  Port: ${addr.port}`))
-        console.log(chalk.green(`   PID: ${process.pid}`))
-
         process.send && process.send({
             type: "STARTED",
             port: addr.port,

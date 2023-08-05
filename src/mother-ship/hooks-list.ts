@@ -24,12 +24,14 @@ export class HooksList {
         })
     }
 
-    async setActive(name: string) {
+    async setActive(name: string, pid: number, port?: number) {
         const hook = this.hooks.get(name);
 
         if(!hook) throw new Error(`Entry with name ${name} already exists`);
 
         hook.status = "ACTIVE"
+        hook.pid = pid;
+        if(port) hook.port = port;
     }
 
     async setStopped(name: string) {

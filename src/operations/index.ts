@@ -9,6 +9,7 @@ import { Executor } from "./types";
 import { status } from "./status";
 import { clean } from "./clean";
 import { remove } from "./remove";
+import { restart } from "./restart";
 
 type Executors = {
     [K in keyof OperationConfigs]: Executor<K>;
@@ -23,7 +24,8 @@ const executors: Executors = {
     help,
     status,
     clean,
-    remove
+    remove,
+    restart
 };
 
 export const runOperation = (operation: Operation) => {

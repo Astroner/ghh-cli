@@ -24,6 +24,11 @@ const DeleteWingDTO = t.type({
     name: t.string
 })
 
+const RestartWingDTO = t.type({
+    name: t.string,
+    port: t.union([t.number, t.undefined]),
+})
+
 const nameFromPath = (configPath: string) => {
     const filename = path.basename(configPath);
 
@@ -73,7 +78,7 @@ export const createWingRouter = (manager: HooksManager, list: HooksList) => {
         const configFile = fs.readFileSync(data.config).toString();
         const configValidation = decodeConfig(JSON.parse(configFile));
         if(Either.isLeft(configValidation)) {
-            res.write(asError(`Config format miss-match`));
+            res.write(asError(`Config file format miss-match`));
             res.end();
             return;
         }
@@ -148,7 +153,7 @@ export const createWingRouter = (manager: HooksManager, list: HooksList) => {
     })
 
     router.delete("/delete", async (req, res) => {
-        const validation = StopWingDTO.decode(req.body);
+        const validation = DeleteWingDTO.decode(req.body);
         if(Either.isLeft(validation)) return res.status(400).send("Incorrect data format");
 
         const { name } = validation.right;
@@ -176,6 +181,57 @@ export const createWingRouter = (manager: HooksManager, list: HooksList) => {
         res.write(asInfo(`Removed successfully`))
 
         res.end()
+    })
+
+    router.put("/restart", async (req, res) => {
+        const validation = RestartWingDTO.decode(req.body);
+        if(Either.isLeft(validation)) return res.status(400).send("Incorrect data format");
+
+        const data = validation.right;
+
+        const hook = list.get(data.name);
+
+        if(!hook) {
+            res.write(asError(`Wing with name "${data.name}" doesn't exist`))
+            res.end();
+
+            return;
+        }
+        if(data.port && !manager.isPortFree(data.port)) {
+            res.write(asError(`Port ${data.port} is already in use`));
+            res.end();
+            return;
+        }
+
+        res.write(asInfo(`Restarting wing ${data.name}` + (data.port ? ` on port ${data.port}...` : "...")))
+
+        const configFile = fs.readFileSync(hook.configFilePath).toString();
+        const configValidation = decodeConfig(JSON.parse(configFile));
+        if(Either.isLeft(configValidation)) {
+            res.write(asError(`Config file format miss-match`));
+            res.end();
+
+            return;
+        }
+
+        try {
+            if(hook.status === "ACTIVE") await manager.stop(hook.name);
+
+            const childData = await manager.start(hook.name, data.port ?? hook.port, hook.cwd, hook.logFilePath, configValidation.right);
+            await list.setActive(hook.name, childData.pid, childData.port);
+
+            console.log("WING_RESTARTED", {
+                ...data,
+                pid: childData.pid,
+            })
+
+            res.write(asInfo(`Restarted with PID ${childData.pid}`))
+        } catch(e) {
+            console.log("FAILED_TO_RESTART", e + "");
+            res.write(asError(e + ""))
+        }
+
+        res.end();
     })
 
     return router;

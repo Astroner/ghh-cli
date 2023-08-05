@@ -17,6 +17,10 @@ export type OperationConfigs = {
     clean: null;
     remove: {
         name: string;
+    };
+    restart: {
+        name: string,
+        port?: number
     }
 };
 
