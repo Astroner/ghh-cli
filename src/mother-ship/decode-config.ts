@@ -3,6 +3,12 @@ import { flow, pipe } from "fp-ts/lib/function";
 
 import * as t from "io-ts";
 
+const ScriptC = t.type({
+    script: t.string,
+    cwd: t.union([t.undefined, t.string]),
+    envs: t.union([t.undefined, t.record(t.string, t.string)]),
+});
+
 const decoder = t.type({
     hookPath: t.union([t.undefined, t.string]),
     ghSecurityKey: t.union([t.undefined, t.string]),
@@ -13,11 +19,7 @@ const decoder = t.type({
         projectPath: t.union([t.undefined, t.string]),
         envs: t.union([t.undefined, t.record(t.string, t.string)]),
         ghSecurityKey: t.union([t.undefined, t.string]),
-        scripts: t.union([t.string, t.array(t.union([t.string, t.type({
-            script: t.string,
-            cwd: t.union([t.undefined, t.string]),
-            envs: t.union([t.undefined, t.record(t.string, t.string)]),
-        })]))])
+        scripts: t.union([t.string, ScriptC, t.array(t.union([t.string, ScriptC]))])
     }))
 });
 

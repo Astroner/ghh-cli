@@ -85,9 +85,9 @@ export const createWingRouter = (manager: HooksManager, list: HooksList) => {
 
 
         res.write(asInfo(`Launching new wing:`))
-        res.write(asInfo(`  Name  : "${name}"`))
-        res.write(asInfo(`  Port  : ${data.port}`))
-        res.write(asInfo(`  Config: "${data.config}"`))
+        res.write(asInfo(`  Name   : "${name}"`))
+        res.write(asInfo(`  Port   : ${data.port}`))
+        res.write(asInfo(`  Config : "${data.config}"`))
 
         try {
             const logFilePath = path.resolve(process.cwd(), `${name}-logs.txt`);
