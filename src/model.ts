@@ -15,6 +15,9 @@ export type OperationConfigs = {
     };
     status: null;
     clean: null;
+    remove: {
+        name: string;
+    }
 };
 
 export type OperationName = keyof OperationConfigs;

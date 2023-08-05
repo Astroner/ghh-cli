@@ -82,7 +82,7 @@ const decoders: Record<
     stop: flow(
         (parsed) => parsed._,
         Array.lookup(1),
-        Either.fromOption(() => new Error("Application name is not provided")),
+        Either.fromOption(() => new Error("Wing name is not provided")),
         Either.map((appName) => ({
             name: "stop",
             config: {
@@ -117,6 +117,17 @@ const decoders: Record<
             name: "clean",
             config: null,
         }),
+    remove: flow(
+        (parsed) => parsed._,
+        Array.lookup(1),
+        Either.fromOption(() => new Error("Wing name is not provided")),
+        Either.map((name) => ({
+            name: "remove",
+            config: {
+                name: name,
+            },
+        })),
+    )
 };
 
 const getOperation = flow(

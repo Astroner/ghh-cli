@@ -4,12 +4,14 @@ import { randomBytes } from "crypto";
 import * as express from "express";
 import { createWingRouter } from "./create-wing-router";
 import { HooksManager } from "./hooks-manager";
+import { HooksList } from "./hooks-list";
 
 const app = express();
 
 const token = process.env.TOKEN ?? randomBytes(32).toString("hex");
 
 const manager = new HooksManager();
+const list = new HooksList();
 
 process.on('SIGINT', async () => {
     try {
@@ -40,7 +42,9 @@ app.post("/land", async (_, res) => {
     process.exit();
 });
 
-app.use("/wing", createWingRouter(manager))
+app.use("/wing", createWingRouter(manager, list))
+
+app.get("/list", (_, res) => res.json(list.getAll()))
 
 const server = app.listen(process.env.PORT, () => {
     const addr = server.address() as AddressInfo;

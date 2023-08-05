@@ -7,12 +7,12 @@ import { DataFile, readDataFile } from "../utils/dataFile";
 import { logStreamFromMotherShip } from "../utils/logStreamFromMotherShip";
 import { chalk } from "../chalk";
 
-export const stop: Executor<"stop"> = ({ name }) => (ctx) => pipe(
+export const remove: Executor<"remove"> = ({ name }) => (ctx) => pipe(
     readDataFile(ctx.dataFilePath),
     TaskEither.filterOrElse(
         (data): data is DataFile => !!data,
         () => new Error("Mother ship is not launched"),
     ),
-    TaskEither.chain(logStreamFromMotherShip("put", `/wing/stop/`, { name })),
+    TaskEither.chain(logStreamFromMotherShip("delete", `/wing/delete/`, { name })),
     TaskEither.chain(() => TaskEither.fromIO(Console.log(chalk.green("Done"))))
 )
