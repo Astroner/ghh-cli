@@ -14,7 +14,8 @@ export const request = <ResponseType = unknown>(method: string, path: string, re
             url: path,
             headers: {
                 Authorization: ctx.token,
-            }
+            },
+            data
         }),
         (err) => new Error("Failed to connect to the mother-ship:\n" + err)
     ),

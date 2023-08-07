@@ -1,9 +1,10 @@
 import { Readable } from "stream";
 
-import * as Applicative from "fp-ts/lib/Applicative";
+import * as Monad from "fp-ts/lib/Monad";
 import * as Apply from "fp-ts/lib/Apply";
 import * as Task from "fp-ts/lib/Task";
 import { pipeable } from "fp-ts/lib/pipeable";
+import { flow, pipe } from "fp-ts/lib/function";
 
 export type Subscription = {
     unsubscribe(): void;
@@ -32,15 +33,17 @@ export const create = <T>(): Stream<T> => {
     }
 }
 
-export const next = <T>(value: T) => (stream: Stream<T>) => {
+export const next = <T>(stream: Stream<T>, value: T) => {
     if(stream.ended) stream;
     stream.subscribers.forEach(cb => cb(value));
 
     return stream;
 };
 
-export const end = (stream: Stream<any>) => {
+export const end = <T>(stream: Stream<T>, value?: T) => {
     if(stream.ended) return stream;
+    if(value) stream.subscribers.forEach(cb => cb(value));
+
     stream.ended = true;
     stream.subscribers = [];
     stream.endScribers.forEach(cb => cb());
@@ -48,7 +51,7 @@ export const end = (stream: Stream<any>) => {
     return stream;
 }
 
-export const subscribe = <T>(cb: (val: T) => void) => (stream: Stream<T>): Subscription => {
+export const subscribe = <T>(stream: Stream<T>, cb: (val: T) => void): Subscription => {
     if(stream.ended) return {
         unsubscribe: () => {}
     }
@@ -60,7 +63,7 @@ export const subscribe = <T>(cb: (val: T) => void) => (stream: Stream<T>): Subsc
     }
 }
 
-export const subscribeEnd = (cb: () => void) => (stream: Stream<any>): Subscription => {
+export const subscribeEnd = (stream: Stream<any>, cb: () => void): Subscription => {
     if(stream.ended) {
         setTimeout(cb, 0);
         return {
@@ -74,7 +77,38 @@ export const subscribeEnd = (cb: () => void) => (stream: Stream<any>): Subscript
     }
 }
 
-export const applicativeInstance: Applicative.Applicative1<"Stream"> = {
+export const flatten = <T>(stream: Stream<Stream<T>>) => {
+    const result = create<T>();
+
+    let prevStream: Stream<T> | null = null;
+    let valueSub: Subscription | null = null;
+    let endSub: Subscription | null = null;
+
+    subscribe(stream, (s) => {
+        valueSub?.unsubscribe();
+        endSub?.unsubscribe();
+        if(prevStream) end(prevStream);
+
+        prevStream = s;
+        valueSub = subscribe(s, (val) => {
+            next(result, val);
+        })
+
+        endSub = subscribeEnd(s, () => end(result))
+    })
+
+    subscribeEnd(result, () => {
+        valueSub?.unsubscribe();
+        endSub?.unsubscribe();
+        if(prevStream) end(prevStream);
+
+        end(result)
+    });
+
+    return result;
+}
+
+export const monadInstance: Monad.Monad1<"Stream"> = {
     URI,
     of() {
         return create()
@@ -83,10 +117,8 @@ export const applicativeInstance: Applicative.Applicative1<"Stream"> = {
         
         const mapped = create<B>()
 
-        subscribe((a: A) => next(f(a))(mapped))(fa)
-        subscribeEnd(() => {
-            end(mapped);
-        })(fa)
+        subscribe(fa, (a: A) => next(mapped, f(a)))
+        subscribeEnd(fa, () => end(mapped))
 
         return mapped;
     },
@@ -99,36 +131,40 @@ export const applicativeInstance: Applicative.Applicative1<"Stream"> = {
         const update = () => {
             if(!transform || !arg) return;
             
-            return next(transform(arg))(result);
+            return next(result, transform(arg));
         }
 
         let ended = 0;
 
-        subscribe((f: ((a: A) => B)) => (transform = f, update()))(fab);
-        subscribe((a: A) => (arg = a, update()))(fa);
+        subscribe(fab, (f) => (transform = f, update()));
+        subscribe(fa, (a) => (arg = a, update()));
 
 
-        const endHandler = subscribeEnd(() => {
+        subscribeEnd(fab, () => {
             if(++ended == 2) end(result);
         })
 
-        endHandler(fab)
-        endHandler(fa)
+        subscribeEnd(fa, () => {
+            if(++ended == 2) end(result);
+        })
 
         return result;
     },
+    chain<A, B>(fa: Stream<A>, f: (a: A) => Stream<B>) {
+        return flatten(monadInstance.map(fa, f))
+    },
 }
 
-const { ap, apFirst, apSecond, map } = pipeable(applicativeInstance);
+const { ap, apFirst, apSecond, map, chain } = pipeable(monadInstance);
 
-export { ap, apFirst, apSecond, map };
+export { ap, apFirst, apSecond, map, chain };
 
-export const sequenceT = Apply.sequenceT(applicativeInstance)
-export const sequenceS = Apply.sequenceS(applicativeInstance)
+export const sequenceT = Apply.sequenceT(monadInstance)
+export const sequenceS = Apply.sequenceS(monadInstance)
 
 export const toTask = (stream: Stream<any>): Task.Task<void> => {
     return () => new Promise<void>((resolve) => {
-        subscribeEnd(resolve)(stream)
+        subscribeEnd(stream, resolve)
     }) 
 }
 
@@ -143,13 +179,38 @@ export const fromReadable = (str: Readable): Stream<unknown> => {
 }
 
 export const tap = <T>(cb: (t: T) => void) => (stream: Stream<T>) => {
-    stream.subscribers.push(cb)
+    subscribe(stream, cb);
 
     return stream;
 }
 
 export const tapEnd = <T>(cb: () => void) => (stream: Stream<T>) => {
-    stream.endScribers.push(cb)
+    subscribeEnd(stream, cb);
+
+    return stream;
+}
+
+interface StreamFilter {
+    <A>(predicate: (a: A) => unknown): (stream: Stream<A>) => Stream<A>
+    <A, B extends A>(predicate: (a: A) => a is B): (stream: Stream<A>) => Stream<B>
+}
+
+export const filter: StreamFilter = (predicate: (a: unknown) => unknown) => (stream: Stream<unknown>) => {
+    const result = create<unknown>();
+
+    subscribe(stream, (a) => {
+        if(predicate(a)) next(result, a);
+    })
+
+    subscribeEnd(stream, () => end(result));
+
+    return result;
+}
+
+export const fromTask = <T>(task: Task.Task<T>) => {
+    const stream = create<T>();
+
+    task().then(t => end(stream, t));
 
     return stream;
 }

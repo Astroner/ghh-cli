@@ -161,6 +161,38 @@ const decoders: Record<
                 config,
             })),
         ),
+    logs: parsed => pipe(
+        Either.Do,
+        Either.bind(
+            "name",
+            flow(
+                () => parsed._,
+                Array.lookup(1),
+                Either.fromOption(() => new Error("Wing name is not provided")),
+            ),
+        ),
+        Either.bind(
+            "lines",
+            flow(
+                () => parsed['lines'],
+                Either.fromNullable(new Error("EMPTY")),
+                Either.map(a => a + ""),
+                Either.chain(flow(
+                    StringToNumber.decode,
+                    Either.mapLeft(
+                        () => new Error("Lines(--lines) should be a number"),
+                    )
+                )),
+                Either.orElse(
+                    (err) => err.message === "EMPTY" ? Either.of<Error, number | undefined>(undefined) : Either.left<Error, number | undefined>(err)
+                ),
+            ),
+        ),
+        Either.map((config) => ({
+            name: "logs",
+            config,
+        })),
+    ),
 };
 
 const getOperation = flow(

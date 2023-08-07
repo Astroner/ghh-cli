@@ -47,11 +47,11 @@ export class HooksList {
         this.hooks.delete(name);
     }
 
-    get(name: string) {
+    async get(name: string) {
         return this.hooks.get(name)
     }
 
-    getAll() {
+    async getAll() {
         return Array.from(this.hooks.values());
     }
 

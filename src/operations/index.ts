@@ -10,6 +10,7 @@ import { status } from "./status";
 import { clean } from "./clean";
 import { remove } from "./remove";
 import { restart } from "./restart";
+import { logs } from "./logs";
 
 type Executors = {
     [K in keyof OperationConfigs]: Executor<K>;
@@ -25,7 +26,8 @@ const executors: Executors = {
     status,
     clean,
     remove,
-    restart
+    restart,
+    logs
 };
 
 export const runOperation = (operation: Operation) => {

@@ -10,6 +10,10 @@ export type OperationConfigs = {
         name: string;
     };
     ls: null;
+    logs: {
+        name: string,
+        lines?: number
+    },
     help: {
         operation?: string;
     };

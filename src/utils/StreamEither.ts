@@ -1,11 +1,12 @@
 import * as TaskEither from "fp-ts/lib/TaskEither";
 import * as Either from "fp-ts/lib/Either";
-import * as Applicative from "fp-ts/lib/Applicative";
+import * as Monad from "fp-ts/lib/Monad";
 import * as Apply from "fp-ts/lib/Apply";
 import { pipeable } from "fp-ts/pipeable";
 
 import * as Stream from "./Stream";
 import { Readable } from "stream";
+import { pipe } from "fp-ts/lib/function";
 
 export type StreamLeft<E> = {
     type: "left"
@@ -49,24 +50,24 @@ export const isRight = <E, T>(stream: StreamEither<E, T>): stream is StreamRight
     return stream.type === "right"
 }
 
-export const next = <E, T>(value: T) => (stream: StreamEither<E, T>): StreamEither<E, T> => {
+export const next = <E, T>(stream: StreamEither<E, T>, value: T): StreamEither<E, T> => {
     if(isLeft(stream)) return stream;
-    Stream.next(value)(stream.stream);
+    Stream.next(stream.stream, value);
 
     return stream;
 }
 
-export const end = <E, T>(stream: StreamEither<E, T>): StreamEither<E, T> => {
+export const end = <E, T>(stream: StreamEither<E, T>, value?: T): StreamEither<E, T> => {
     if(isLeft(stream)) return stream;
-
+    
     stream.errorSubscribers = [];
 
-    Stream.end(stream.stream);
+    Stream.end(stream.stream, value);
 
     return stream;
 }
 
-export const fail = <E, T>(e: E) => (stream: StreamEither<E, T>): StreamEither<E, T> => {
+export const fail = <E, T>(stream: StreamEither<E, T>, e: E): StreamEither<E, T> => {
     if(isLeft(stream)) return stream;
 
     stream.errorSubscribers.forEach(cb => cb(e));
@@ -88,23 +89,23 @@ export const fail = <E, T>(e: E) => (stream: StreamEither<E, T>): StreamEither<E
     return stream;
 }
 
-export const subscribe = <E, T>(cb: (v: T) => void) => (stream: StreamEither<E, T>): Stream.Subscription => {
+export const subscribe = <E, T>(stream: StreamEither<E, T>, cb: (v: T) => void): Stream.Subscription => {
     if(isLeft(stream)) return {
         unsubscribe: () => {}
     }
 
-    return Stream.subscribe(cb)(stream.stream);
+    return Stream.subscribe(stream.stream, cb);
 }
 
-export const subscribeEnd = (cb: () => void) => (stream: StreamEither<any, any>): Stream.Subscription => {
+export const subscribeEnd = (stream: StreamEither<any, any>, cb: () => void): Stream.Subscription => {
     if(isLeft(stream)) return {
         unsubscribe: () => {}
     }
 
-    return Stream.subscribeEnd(cb)(stream.stream);
+    return Stream.subscribeEnd(stream.stream, cb);
 }
 
-export const subscribeError = <E, T>(cb: (e: E) => void) => (stream: StreamEither<E, T>): Stream.Subscription => {
+export const subscribeError = <E, T>(stream: StreamEither<E, T>, cb: (e: E) => void): Stream.Subscription => {
     if(isLeft(stream)) {
         setTimeout(() => cb(stream.error), 0)
         return {
@@ -119,19 +120,27 @@ export const subscribeError = <E, T>(cb: (e: E) => void) => (stream: StreamEithe
     }
 }
 
-const applicativeInstance: Applicative.Applicative2<"StreamEither"> = {
+const monadInstance: Monad.Monad2<"StreamEither"> = {
     URI,
-    of() {
-        return right();
+    of<E, A>(a: A) {
+        const stream = right<E, A>();
+
+        setTimeout(() => next(stream, a), 0)
+
+        return stream;
     },
     map<E, A, B>(fa: StreamEither<E, A>, f: (a: A) => B) {
         if(isLeft(fa)) return fa as StreamEither<E, B>;
 
-        return {
+        const result: StreamEither<E, B> = {
             type: "right",
             errorSubscribers: [],
             stream: Stream.map<A, B>(f)(fa.stream)
         }
+        
+        subscribeError(fa, (e) => fail(result, e))
+
+        return result;
     },
     ap<E, A, B>(fab: StreamEither<E, (a: A) => B>, fa: StreamEither<E, A>) {
         if(isLeft(fab)) return fab as StreamEither<E, B>
@@ -143,33 +152,41 @@ const applicativeInstance: Applicative.Applicative2<"StreamEither"> = {
             stream: Stream.ap(fa.stream)(fab.stream)
         };
 
-        const errorHandler = subscribeError<E, any>(
-            (e: E) => fail<E, B>(e)(result)
+        subscribeError<E, any>(fab,
+            (e: E) => fail(result, e)
         )
 
-        errorHandler(fab);
-        errorHandler(fa);
+        subscribeError<E, any>(fa,
+            (e: E) => fail(result, e)
+        )
 
         return result;
     },
+    chain(fa, f) {
+        return flatten(monadInstance.map(fa, f))
+    },
 }
 
-const { map, ap, apFirst, apSecond } = pipeable(applicativeInstance);
+const of_ = monadInstance.of;
 
-export { map, ap, apFirst, apSecond };
+export { of_ as of };
 
-export const sequenceT = Apply.sequenceT(applicativeInstance);
-export const sequenceS = Apply.sequenceS(applicativeInstance);
+const { map, ap, apFirst, apSecond, chain } = pipeable(monadInstance);
+
+export { map, ap, apFirst, apSecond, chain };
+
+export const sequenceT = Apply.sequenceT(monadInstance);
+export const sequenceS = Apply.sequenceS(monadInstance);
 
 export const fromReadable = (readable: Readable): StreamEither<Error, unknown> => {
     const result = right<Error, unknown>();
 
     readable.on('data', chunk => {
-        next<Error, unknown>(chunk)(result);
+        next(result, chunk);
     })
 
     readable.once('error', err => {
-        fail(err)(result);
+        fail(result, err);
     })
 
     readable.once('end', () => {
@@ -181,8 +198,8 @@ export const fromReadable = (readable: Readable): StreamEither<Error, unknown> =
 
 export const toTaskEither = <E, T>(stream: StreamEither<E, T>): TaskEither.TaskEither<E, void> => {
     return () => new Promise<Either.Either<E, void>>((resolve) => {
-        subscribeEnd(() => resolve(Either.right(undefined)))(stream)
-        subscribeError<E, T>((err) => resolve(Either.left(err)))(stream)
+        subscribeEnd(stream, () => resolve(Either.right(undefined)))
+        subscribeError(stream, (err) => resolve(Either.left(err)))
     })
 }
 
@@ -191,32 +208,160 @@ export const chainEither = <E, A, B>(map: (a: A) => Either.Either<E, B>) => (str
 
     const result = right<E, B>();
 
-    subscribe<E, A>((a: A) => {
+    subscribe(stream, (a: A) => {
         const val = map(a);
-        if(Either.isLeft(val)) fail<E, B>(val.left)(result)
-        else next<E, B>(val.right)(result)
-    })(stream)
+        if(Either.isLeft(val)) fail(result, val.left)
+        else next(result, val.right)
+    })
 
-    subscribeEnd(() => end(result))(stream);
-    subscribeError<E, A>((err: E) => fail<E, B>(err)(result))(stream);
+    subscribeEnd(stream, () => end(result));
+    subscribeError(stream, (err: E) => fail(result, err));
 
     return result;
 }
 
 export const tap = <E, A>(cb: (a: A) => void) => (stream: StreamEither<E, A>) => {
-    subscribe<E, A>(cb)(stream);
+    subscribe(stream, cb);
 
     return stream;
 }
 
 export const tapEnd = <E, A>(cb: () => void) => (stream: StreamEither<E, A>) => {
-    subscribeEnd(cb)(stream);
+    subscribeEnd(stream, cb);
 
     return stream;
 }
 
 export const tapError = <E, A>(cb: (e: E) => void) => (stream: StreamEither<E, A>) => {
-    subscribeError<E, A>(cb)(stream);
+    subscribeError(stream, cb);
+
+    return stream;
+}
+
+export const fromTaskEither = <E, A>(te: TaskEither.TaskEither<E, A>) => {
+    const stream = right<E, A>();
+
+    te()
+        .then(Either.fold(
+            (e) => fail(stream, e),
+            (r) => next(stream, r),
+        ))
+
+    return stream;
+}
+
+
+interface StreamEitherFilter {
+    <E, A>(predicate: (a: A) => unknown): (stream: StreamEither<E, A>) => StreamEither<E, A>
+    <E, A, B extends A>(predicate: (a: A) => a is B): (stream: StreamEither<E, A>) => StreamEither<E, B>
+}
+
+export const filter: StreamEitherFilter = (predicate: (a: unknown) => unknown) => (stream: StreamEither<unknown, unknown>) => {
+    if(isLeft(stream)) return stream;
+
+    const result: StreamEither<unknown, unknown> = {
+        type: "right",
+        stream: Stream.filter(predicate)(stream.stream),
+        errorSubscribers: []
+    }
+
+    subscribeError(stream, (e) => {
+        fail(result, e);
+    })
+
+    return result;
+}
+
+export const flatten = <E, A>(stream: StreamEither<E, StreamEither<E, A>>) => {
+    if(isLeft(stream)) return stream;
+
+    const result = right<E, A>();
+
+    let prevStream: StreamEither<E, A> | null = null;
+    let valSub: Stream.Subscription | null = null;
+    let errSub: Stream.Subscription | null = null;
+    let endSub: Stream.Subscription | null = null;
+
+    subscribe(stream, (s) => {
+        valSub?.unsubscribe();
+        errSub?.unsubscribe();
+        endSub?.unsubscribe();
+        if(prevStream) end(prevStream);
+        
+        prevStream = s;
+        valSub = subscribe(s, (a) => {
+            next(result, a);
+        })
+
+        errSub = subscribeError(s, e => {
+            fail(result, e)
+        })
+
+        endSub = subscribeEnd(s, () => end(result));
+    })
+
+    subscribeError(stream, (e) => {
+        valSub?.unsubscribe();
+        errSub?.unsubscribe();
+        endSub?.unsubscribe();
+        if(prevStream) end(prevStream);
+
+        fail(result, e);
+    })
+
+    subscribeEnd(stream, () => {
+        valSub?.unsubscribe();
+        errSub?.unsubscribe();
+        endSub?.unsubscribe();
+        if(prevStream) end(prevStream);
+
+        end(result)
+    });
+
+    return result;
+}
+
+export const accumulate = <E, T>(stream: StreamEither<E, T>): TaskEither.TaskEither<E, T[]> => {
+    if(isLeft(stream)) return TaskEither.left(stream.error);
+
+    return () => new Promise(resolve => {
+        const entries: T[] = [];
+        subscribe(stream, v => entries.push(v));
+        subscribeError(stream, e => resolve(Either.left(e)));
+        subscribeEnd(stream, () => resolve(Either.right(entries)));
+    })
+}
+
+export const chainFirst = <E, A, B>(map: (a: A) => StreamEither<E, B>) => (input: StreamEither<E, A>): StreamEither<E, A> => {
+    if(isLeft(input)) return input;
+
+    const stream = right<E, A>();
+
+    let mappedStream: StreamEither<E, B> | null = null;
+    let errSub: Stream.Subscription | null = null;
+    subscribe(input, (value) => {
+        errSub?.unsubscribe();
+        if(mappedStream) end(mappedStream);
+
+        mappedStream = map(value);
+
+        errSub = subscribeError(mappedStream, e => fail(stream, e))
+
+        next(stream, value);
+    })
+
+    subscribeEnd(input, () => {
+        errSub?.unsubscribe();
+        if(mappedStream) end(mappedStream);
+        end(stream)
+    });
+
+    subscribeError(input, (err) => {
+        errSub?.unsubscribe();
+        if(mappedStream) end(mappedStream);
+
+        fail(stream, err)
+    });
 
     return stream;
 }

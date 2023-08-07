@@ -16,11 +16,7 @@ const CreateWingDTO = t.type({
     config: t.string
 })
 
-const StopWingDTO = t.type({
-    name: t.string
-})
-
-const DeleteWingDTO = t.type({
+const NameDTO = t.type({
     name: t.string
 })
 
@@ -125,7 +121,7 @@ export const createWingRouter = (manager: HooksManager, list: HooksList) => {
     })
 
     router.put("/stop", async (req, res) => {
-        const validation = StopWingDTO.decode(req.body);
+        const validation = NameDTO.decode(req.body);
         if(Either.isLeft(validation)) return res.status(400).send("Incorrect data format");
 
         const { name } = validation.right;
@@ -153,12 +149,12 @@ export const createWingRouter = (manager: HooksManager, list: HooksList) => {
     })
 
     router.delete("/delete", async (req, res) => {
-        const validation = DeleteWingDTO.decode(req.body);
+        const validation = NameDTO.decode(req.body);
         if(Either.isLeft(validation)) return res.status(400).send("Incorrect data format");
 
         const { name } = validation.right;
 
-        const hook = list.get(name);
+        const hook = await list.get(name);
 
         if(!hook) {
             res.write(asError(`Wing with name "${name}" doesn't exist`))
@@ -189,7 +185,7 @@ export const createWingRouter = (manager: HooksManager, list: HooksList) => {
 
         const data = validation.right;
 
-        const hook = list.get(data.name);
+        const hook = await list.get(data.name);
 
         if(!hook) {
             res.write(asError(`Wing with name "${data.name}" doesn't exist`))
@@ -232,6 +228,19 @@ export const createWingRouter = (manager: HooksManager, list: HooksList) => {
         }
 
         res.end();
+    })
+
+    router.get("/info", async (req, res) => {
+        const validation = NameDTO.decode(req.body);
+        if(validation._tag === "Left") return res.status(400).send();
+
+        const { name } = validation.right;
+
+        const hook = await list.get(name);
+
+        if(!hook) return res.status(404).send();
+
+        res.json(hook);
     })
 
     return router;
