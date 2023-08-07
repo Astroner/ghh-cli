@@ -44,7 +44,7 @@ app.post("/land", async (_, res) => {
 
 app.use("/wing", createWingRouter(manager, list));
 
-app.get("/list", (_, res) => res.json(list.getAll()));
+app.get("/list", async (_, res) => res.json(await list.getAll()));
 
 const server = app.listen(process.env.PORT, () => {
     const addr = server.address() as AddressInfo;
