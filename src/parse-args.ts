@@ -13,18 +13,19 @@ import { OperationName, Operation } from "./model";
 const optionalString = t.union([t.string, t.undefined]);
 
 const StringToNumber: d.Decoder<string, number> = {
-    decode: str => pipe(
-        Either.of(+str),
-        Either.filterOrElse(
-            n => !Number.isNaN(n),
-            () => new Error("Not a number")
+    decode: (str) =>
+        pipe(
+            Either.of(+str),
+            Either.filterOrElse(
+                (n) => !Number.isNaN(n),
+                () => new Error("Not a number"),
+            ),
+            Either.fold(
+                (e) => d.failure(str, e.message),
+                (n) => d.success(n),
+            ),
         ),
-        Either.fold(
-            e => d.failure(str, e.message),
-            n => d.success(n)
-        )
-    )
-}
+};
 
 const decoders: Record<
     OperationName,
@@ -48,7 +49,7 @@ const decoders: Record<
                 flow(
                     () => parsed["n"],
                     optionalString.asDecoder().decode,
-                    Either.map(s => s?.trim()),
+                    Either.map((s) => s?.trim()),
                     Either.mapLeft(
                         () => new Error("Name(-n) should be a string"),
                     ),
@@ -136,23 +137,29 @@ const decoders: Record<
                 flow(
                     () => parsed._,
                     Array.lookup(1),
-                    Either.fromOption(() => new Error("Wing name is not provided")),
+                    Either.fromOption(
+                        () => new Error("Wing name is not provided"),
+                    ),
                 ),
             ),
             Either.bind(
                 "port",
                 flow(
-                    () => parsed['p'],
+                    () => parsed["p"],
                     Either.fromNullable(new Error("EMPTY")),
-                    Either.map(a => a + ""),
-                    Either.chain(flow(
-                        StringToNumber.decode,
-                        Either.mapLeft(
-                            () => new Error("Port(-p) should be a number"),
-                        )
-                    )),
-                    Either.orElse(
-                        (err) => err.message === "EMPTY" ? Either.of<Error, number | undefined>(undefined) : Either.left<Error, number | undefined>(err)
+                    Either.map((a) => a + ""),
+                    Either.chain(
+                        flow(
+                            StringToNumber.decode,
+                            Either.mapLeft(
+                                () => new Error("Port(-p) should be a number"),
+                            ),
+                        ),
+                    ),
+                    Either.orElse((err) =>
+                        err.message === "EMPTY"
+                            ? Either.of<Error, number | undefined>(undefined)
+                            : Either.left<Error, number | undefined>(err),
                     ),
                 ),
             ),
@@ -161,38 +168,48 @@ const decoders: Record<
                 config,
             })),
         ),
-    logs: parsed => pipe(
-        Either.Do,
-        Either.bind(
-            "name",
-            flow(
-                () => parsed._,
-                Array.lookup(1),
-                Either.fromOption(() => new Error("Wing name is not provided")),
-            ),
-        ),
-        Either.bind(
-            "lines",
-            flow(
-                () => parsed['lines'],
-                Either.fromNullable(new Error("EMPTY")),
-                Either.map(a => a + ""),
-                Either.chain(flow(
-                    StringToNumber.decode,
-                    Either.mapLeft(
-                        () => new Error("Lines(--lines) should be a number"),
-                    )
-                )),
-                Either.orElse(
-                    (err) => err.message === "EMPTY" ? Either.of<Error, number | undefined>(undefined) : Either.left<Error, number | undefined>(err)
+    logs: (parsed) =>
+        pipe(
+            Either.Do,
+            Either.bind(
+                "name",
+                flow(
+                    () => parsed._,
+                    Array.lookup(1),
+                    Either.fromOption(
+                        () => new Error("Wing name is not provided"),
+                    ),
                 ),
             ),
+            Either.bind(
+                "lines",
+                flow(
+                    () => parsed["lines"],
+                    Either.fromNullable(new Error("EMPTY")),
+                    Either.map((a) => a + ""),
+                    Either.chain(
+                        flow(
+                            StringToNumber.decode,
+                            Either.mapLeft(
+                                () =>
+                                    new Error(
+                                        "Lines(--lines) should be a number",
+                                    ),
+                            ),
+                        ),
+                    ),
+                    Either.orElse((err) =>
+                        err.message === "EMPTY"
+                            ? Either.of<Error, number | undefined>(undefined)
+                            : Either.left<Error, number | undefined>(err),
+                    ),
+                ),
+            ),
+            Either.map((config) => ({
+                name: "logs",
+                config,
+            })),
         ),
-        Either.map((config) => ({
-            name: "logs",
-            config,
-        })),
-    ),
 };
 
 const getOperation = flow(

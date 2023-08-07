@@ -11,9 +11,9 @@ export type OperationConfigs = {
     };
     ls: null;
     logs: {
-        name: string,
-        lines?: number
-    },
+        name: string;
+        lines?: number;
+    };
     help: {
         operation?: string;
     };
@@ -23,9 +23,9 @@ export type OperationConfigs = {
         name: string;
     };
     restart: {
-        name: string,
-        port?: number
-    }
+        name: string;
+        port?: number;
+    };
 };
 
 export type OperationName = keyof OperationConfigs;

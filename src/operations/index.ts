@@ -27,7 +27,7 @@ const executors: Executors = {
     clean,
     remove,
     restart,
-    logs
+    logs,
 };
 
 export const runOperation = (operation: Operation) => {

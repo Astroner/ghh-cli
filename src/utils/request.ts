@@ -6,22 +6,39 @@ import * as Either from "fp-ts/lib/Either";
 import * as t from "io-ts";
 import { DataFile } from "./dataFile";
 
-export const request = <ResponseType = unknown>(method: string, path: string, responseType: t.Type<ResponseType> = t.any, data?: unknown) => (ctx: DataFile): TaskEither.TaskEither<Error, ResponseType> => pipe(
-    TaskEither.tryCatch(
-        () => axios({
-            method,
-            baseURL: `http://127.0.0.1:${ctx.port}`,
-            url: path,
-            headers: {
-                Authorization: ctx.token,
-            },
-            data
-        }),
-        (err) => new Error("Failed to connect to the mother-ship:\n" + err)
-    ),
-    TaskEither.map(response => response.data),
-    Task.map(Either.chain(flow(
-        responseType.decode,
-        Either.mapLeft(() => new Error("Failed to decode mother-ship data")
-    ))))
-)
+export const request =
+    <ResponseType = unknown>(
+        method: string,
+        path: string,
+        responseType: t.Type<ResponseType> = t.any,
+        data?: unknown,
+    ) =>
+    (ctx: DataFile): TaskEither.TaskEither<Error, ResponseType> =>
+        pipe(
+            TaskEither.tryCatch(
+                () =>
+                    axios({
+                        method,
+                        baseURL: `http://127.0.0.1:${ctx.port}`,
+                        url: path,
+                        headers: {
+                            Authorization: ctx.token,
+                        },
+                        data,
+                    }),
+                (err) =>
+                    new Error("Failed to connect to the mother-ship:\n" + err),
+            ),
+            TaskEither.map((response) => response.data),
+            Task.map(
+                Either.chain(
+                    flow(
+                        responseType.decode,
+                        Either.mapLeft(
+                            () =>
+                                new Error("Failed to decode mother-ship data"),
+                        ),
+                    ),
+                ),
+            ),
+        );

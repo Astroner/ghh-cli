@@ -13,13 +13,13 @@ const token = process.env.TOKEN ?? randomBytes(32).toString("hex");
 const manager = new HooksManager();
 const list = new HooksList();
 
-process.on('SIGINT', async () => {
+process.on("SIGINT", async () => {
     try {
         await manager.stopAll();
     } catch (e) {
         console.error(`Failed to stop child processes:\n${e}`);
     }
-})
+});
 
 app.use("*", (req, res, next) => {
     if (req.headers.authorization !== token) res.status(401).send();
@@ -31,9 +31,9 @@ app.get("/ping", (_, res) => res.send("pong"));
 app.post("/land", async (_, res) => {
     try {
         await manager.stopAll();
-    } catch(e){
+    } catch (e) {
         res.status(500).send(e + "");
-        
+
         return;
     }
 
@@ -42,9 +42,9 @@ app.post("/land", async (_, res) => {
     process.exit();
 });
 
-app.use("/wing", createWingRouter(manager, list))
+app.use("/wing", createWingRouter(manager, list));
 
-app.get("/list", (_, res) => res.json(list.getAll()))
+app.get("/list", (_, res) => res.json(list.getAll()));
 
 const server = app.listen(process.env.PORT, () => {
     const addr = server.address() as AddressInfo;

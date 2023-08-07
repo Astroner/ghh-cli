@@ -23,44 +23,57 @@ export const clean: Executor<"clean"> = () => (ctx) =>
             pipe(
                 TaskEither.tryCatch(
                     () =>
-                        axios.get(
-                            `http://127.0.0.1:${data.port}/ping`,
-                            {
-                                headers: {
-                                    Authorization: data.token,
-                                },
+                        axios.get(`http://127.0.0.1:${data.port}/ping`, {
+                            headers: {
+                                Authorization: data.token,
                             },
-                        ),
+                        }),
                     () => new Error("INACTIVE"),
                 ),
             ),
         ),
-        TaskEither.orElseFirst(
-            e => 
-                e.message === "INACTIVE" 
+        TaskEither.orElseFirst((e) =>
+            e.message === "INACTIVE"
                 ? TaskEither.tryCatch(
-                    () =>
-                        new Promise<void>((resolve, reject) => {
-                            fs.unlink(ctx.dataFilePath, (err) => {
-                                if (!err) resolve();
-                                else reject(err);
-                            });
-                        }),
-                    (err) =>
-                        new Error(
-                            `Failed to delete data file at "${ctx.dataFilePath}"\n` +
-                                err,
-                        ),
-                )
-                : TaskEither.left(e)
+                      () =>
+                          new Promise<void>((resolve, reject) => {
+                              fs.unlink(ctx.dataFilePath, (err) => {
+                                  if (!err) resolve();
+                                  else reject(err);
+                              });
+                          }),
+                      (err) =>
+                          new Error(
+                              `Failed to delete data file at "${ctx.dataFilePath}"\n` +
+                                  err,
+                          ),
+                  )
+                : TaskEither.left(e),
         ),
         TaskEither.fold(
-            (e) => 
-                e.message === "ALREADY" 
-                ? TaskEither.fromIO(Console.log(chalk.yellow("Everything is already clean")))
-                : e.message === "INACTIVE" 
-                ? TaskEither.fromIO(Console.log(chalk.yellow("Mother-ship is not active, data file deleted")))
-                : TaskEither.left(e),
-            () => TaskEither.fromIO(Console.error(chalk.red("Cannot delete data file because mother ship is launched")))
-        )
+            (e) =>
+                e.message === "ALREADY"
+                    ? TaskEither.fromIO(
+                          Console.log(
+                              chalk.yellow("Everything is already clean"),
+                          ),
+                      )
+                    : e.message === "INACTIVE"
+                    ? TaskEither.fromIO(
+                          Console.log(
+                              chalk.yellow(
+                                  "Mother-ship is not active, data file deleted",
+                              ),
+                          ),
+                      )
+                    : TaskEither.left(e),
+            () =>
+                TaskEither.fromIO(
+                    Console.error(
+                        chalk.red(
+                            "Cannot delete data file because mother ship is launched",
+                        ),
+                    ),
+                ),
+        ),
     );

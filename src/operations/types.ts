@@ -18,5 +18,5 @@ export const WingInfoC = t.type({
     status: t.union([t.literal("ACTIVE"), t.literal("STOPPED")]),
     cwd: t.string,
     logFilePath: t.string,
-    configFilePath: t.string
-})
+    configFilePath: t.string,
+});

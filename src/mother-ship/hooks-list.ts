@@ -1,12 +1,12 @@
 export type HookEntry = {
-    status: "ACTIVE" | "STOPPED"
+    status: "ACTIVE" | "STOPPED";
     name: string;
     logFilePath: string;
     cwd: string;
     pid: number | null;
     port: number;
     configFilePath: string;
-}
+};
 
 export class HooksList {
     private hooks = new Map<string, HookEntry>();
@@ -15,31 +15,32 @@ export class HooksList {
         return this.hooks.has(name);
     }
 
-    async add(entry: Omit<HookEntry, 'status'>) {
-        if(this.hooks.has(entry.name)) throw new Error(`Entry with name ${entry.name} already exists`);
+    async add(entry: Omit<HookEntry, "status">) {
+        if (this.hooks.has(entry.name))
+            throw new Error(`Entry with name ${entry.name} already exists`);
 
         this.hooks.set(entry.name, {
             ...entry,
-            status: "ACTIVE"
-        })
+            status: "ACTIVE",
+        });
     }
 
     async setActive(name: string, pid: number, port?: number) {
         const hook = this.hooks.get(name);
 
-        if(!hook) throw new Error(`Entry with name ${name} already exists`);
+        if (!hook) throw new Error(`Entry with name ${name} already exists`);
 
-        hook.status = "ACTIVE"
+        hook.status = "ACTIVE";
         hook.pid = pid;
-        if(port) hook.port = port;
+        if (port) hook.port = port;
     }
 
     async setStopped(name: string) {
         const hook = this.hooks.get(name);
 
-        if(!hook) throw new Error(`Entry with name ${name} already exists`);
+        if (!hook) throw new Error(`Entry with name ${name} already exists`);
 
-        hook.status = "STOPPED"
+        hook.status = "STOPPED";
         hook.pid = null;
     }
 
@@ -48,11 +49,10 @@ export class HooksList {
     }
 
     async get(name: string) {
-        return this.hooks.get(name)
+        return this.hooks.get(name);
     }
 
     async getAll() {
         return Array.from(this.hooks.values());
     }
-
 }

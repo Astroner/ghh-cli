@@ -8,20 +8,20 @@ import { flow, pipe } from "fp-ts/lib/function";
 
 export type Subscription = {
     unsubscribe(): void;
-}
+};
 
 export type Stream<T> = {
     ended: boolean;
-    subscribers: Array<(t: T) => void>
-    endScribers: Array<() => void>
-}
+    subscribers: Array<(t: T) => void>;
+    endScribers: Array<() => void>;
+};
 
 export const URI = "Stream";
 export type URI = typeof URI;
 
-declare module 'fp-ts/HKT' {
+declare module "fp-ts/HKT" {
     interface URItoKind<A> {
-      readonly Stream: Stream<A>
+        readonly Stream: Stream<A>;
     }
 }
 
@@ -30,52 +30,61 @@ export const create = <T>(): Stream<T> => {
         ended: false,
         subscribers: [],
         endScribers: [],
-    }
-}
+    };
+};
 
 export const next = <T>(stream: Stream<T>, value: T) => {
-    if(stream.ended) stream;
-    stream.subscribers.forEach(cb => cb(value));
+    if (stream.ended) stream;
+    stream.subscribers.forEach((cb) => cb(value));
 
     return stream;
 };
 
 export const end = <T>(stream: Stream<T>, value?: T) => {
-    if(stream.ended) return stream;
-    if(value) stream.subscribers.forEach(cb => cb(value));
+    if (stream.ended) return stream;
+    if (value) stream.subscribers.forEach((cb) => cb(value));
 
     stream.ended = true;
     stream.subscribers = [];
-    stream.endScribers.forEach(cb => cb());
+    stream.endScribers.forEach((cb) => cb());
 
     return stream;
-}
+};
 
-export const subscribe = <T>(stream: Stream<T>, cb: (val: T) => void): Subscription => {
-    if(stream.ended) return {
-        unsubscribe: () => {}
-    }
+export const subscribe = <T>(
+    stream: Stream<T>,
+    cb: (val: T) => void,
+): Subscription => {
+    if (stream.ended)
+        return {
+            unsubscribe: () => {},
+        };
 
-    stream.subscribers.push(cb)
+    stream.subscribers.push(cb);
 
     return {
-        unsubscribe: () => stream.subscribers.splice(stream.subscribers.indexOf(cb), 1)
-    }
-}
+        unsubscribe: () =>
+            stream.subscribers.splice(stream.subscribers.indexOf(cb), 1),
+    };
+};
 
-export const subscribeEnd = (stream: Stream<any>, cb: () => void): Subscription => {
-    if(stream.ended) {
+export const subscribeEnd = (
+    stream: Stream<any>,
+    cb: () => void,
+): Subscription => {
+    if (stream.ended) {
         setTimeout(cb, 0);
         return {
-            unsubscribe: () => {}
-        }
+            unsubscribe: () => {},
+        };
     }
-    stream.endScribers.push(cb)
+    stream.endScribers.push(cb);
 
     return {
-        unsubscribe: () => stream.endScribers.splice(stream.subscribers.indexOf(cb), 1)
-    }
-}
+        unsubscribe: () =>
+            stream.endScribers.splice(stream.subscribers.indexOf(cb), 1),
+    };
+};
 
 export const flatten = <T>(stream: Stream<Stream<T>>) => {
     const result = create<T>();
@@ -87,38 +96,37 @@ export const flatten = <T>(stream: Stream<Stream<T>>) => {
     subscribe(stream, (s) => {
         valueSub?.unsubscribe();
         endSub?.unsubscribe();
-        if(prevStream) end(prevStream);
+        if (prevStream) end(prevStream);
 
         prevStream = s;
         valueSub = subscribe(s, (val) => {
             next(result, val);
-        })
+        });
 
-        endSub = subscribeEnd(s, () => end(result))
-    })
+        endSub = subscribeEnd(s, () => end(result));
+    });
 
     subscribeEnd(result, () => {
         valueSub?.unsubscribe();
         endSub?.unsubscribe();
-        if(prevStream) end(prevStream);
+        if (prevStream) end(prevStream);
 
-        end(result)
+        end(result);
     });
 
     return result;
-}
+};
 
 export const monadInstance: Monad.Monad1<"Stream"> = {
     URI,
     of() {
-        return create()
+        return create();
     },
     map<A, B>(fa: Stream<A>, f: (a: A) => B) {
-        
-        const mapped = create<B>()
+        const mapped = create<B>();
 
-        subscribe(fa, (a: A) => next(mapped, f(a)))
-        subscribeEnd(fa, () => end(mapped))
+        subscribe(fa, (a: A) => next(mapped, f(a)));
+        subscribeEnd(fa, () => end(mapped));
 
         return mapped;
     },
@@ -126,91 +134,98 @@ export const monadInstance: Monad.Monad1<"Stream"> = {
         let transform: ((a: A) => B) | null = null;
         let arg: A | null = null;
 
-        const result = create<B>()
+        const result = create<B>();
 
         const update = () => {
-            if(!transform || !arg) return;
-            
+            if (!transform || !arg) return;
+
             return next(result, transform(arg));
-        }
+        };
 
         let ended = 0;
 
-        subscribe(fab, (f) => (transform = f, update()));
-        subscribe(fa, (a) => (arg = a, update()));
-
+        subscribe(fab, (f) => ((transform = f), update()));
+        subscribe(fa, (a) => ((arg = a), update()));
 
         subscribeEnd(fab, () => {
-            if(++ended == 2) end(result);
-        })
+            if (++ended == 2) end(result);
+        });
 
         subscribeEnd(fa, () => {
-            if(++ended == 2) end(result);
-        })
+            if (++ended == 2) end(result);
+        });
 
         return result;
     },
     chain<A, B>(fa: Stream<A>, f: (a: A) => Stream<B>) {
-        return flatten(monadInstance.map(fa, f))
+        return flatten(monadInstance.map(fa, f));
     },
-}
+};
 
 const { ap, apFirst, apSecond, map, chain } = pipeable(monadInstance);
 
 export { ap, apFirst, apSecond, map, chain };
 
-export const sequenceT = Apply.sequenceT(monadInstance)
-export const sequenceS = Apply.sequenceS(monadInstance)
+export const sequenceT = Apply.sequenceT(monadInstance);
+export const sequenceS = Apply.sequenceS(monadInstance);
 
 export const toTask = (stream: Stream<any>): Task.Task<void> => {
-    return () => new Promise<void>((resolve) => {
-        subscribeEnd(stream, resolve)
-    }) 
-}
+    return () =>
+        new Promise<void>((resolve) => {
+            subscribeEnd(stream, resolve);
+        });
+};
 
 export const fromReadable = (str: Readable): Stream<unknown> => {
-    const result = create<unknown>()
-
-    str.on('data', (chunk) => result.subscribers.forEach(cb => cb(chunk)))
-    str.on('close', () => end(result))
-    str.on('error', () => end(result))
-
-    return result;
-}
-
-export const tap = <T>(cb: (t: T) => void) => (stream: Stream<T>) => {
-    subscribe(stream, cb);
-
-    return stream;
-}
-
-export const tapEnd = <T>(cb: () => void) => (stream: Stream<T>) => {
-    subscribeEnd(stream, cb);
-
-    return stream;
-}
-
-interface StreamFilter {
-    <A>(predicate: (a: A) => unknown): (stream: Stream<A>) => Stream<A>
-    <A, B extends A>(predicate: (a: A) => a is B): (stream: Stream<A>) => Stream<B>
-}
-
-export const filter: StreamFilter = (predicate: (a: unknown) => unknown) => (stream: Stream<unknown>) => {
     const result = create<unknown>();
 
-    subscribe(stream, (a) => {
-        if(predicate(a)) next(result, a);
-    })
-
-    subscribeEnd(stream, () => end(result));
+    str.on("data", (chunk) => result.subscribers.forEach((cb) => cb(chunk)));
+    str.on("close", () => end(result));
+    str.on("error", () => end(result));
 
     return result;
+};
+
+export const tap =
+    <T>(cb: (t: T) => void) =>
+    (stream: Stream<T>) => {
+        subscribe(stream, cb);
+
+        return stream;
+    };
+
+export const tapEnd =
+    <T>(cb: () => void) =>
+    (stream: Stream<T>) => {
+        subscribeEnd(stream, cb);
+
+        return stream;
+    };
+
+interface StreamFilter {
+    <A>(predicate: (a: A) => unknown): (stream: Stream<A>) => Stream<A>;
+    <A, B extends A>(
+        predicate: (a: A) => a is B,
+    ): (stream: Stream<A>) => Stream<B>;
 }
+
+export const filter: StreamFilter =
+    (predicate: (a: unknown) => unknown) => (stream: Stream<unknown>) => {
+        const result = create<unknown>();
+
+        subscribe(stream, (a) => {
+            if (predicate(a)) next(result, a);
+        });
+
+        subscribeEnd(stream, () => end(result));
+
+        return result;
+    };
 
 export const fromTask = <T>(task: Task.Task<T>) => {
     const stream = create<T>();
 
-    task().then(t => end(stream, t));
+    task().then((t) => end(stream, t));
 
     return stream;
-}
+};

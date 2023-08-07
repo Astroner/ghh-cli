@@ -10,18 +10,18 @@ export type Hook = {
     pid: number;
     port: number;
     process: ChildProcess;
-}
+};
 
 const childMessage = t.union([
     t.type({
         type: t.literal("STARTED"),
         pid: t.number,
-        port: t.number
+        port: t.number,
     }),
     t.type({
         type: t.literal("FAILURE"),
-        error: t.string
-    })
+        error: t.string,
+    }),
 ]);
 
 export class HooksManager {
@@ -38,14 +38,15 @@ export class HooksManager {
     }
 
     async start(
-        name: string, 
-        port: number, 
-        cwd: string, 
+        name: string,
+        port: number,
+        cwd: string,
         logFilePath: string,
-        config: HookConfig
+        config: HookConfig,
     ) {
-        if(!this.isPortFree(port)) throw new Error(`Port ${port} is busy`);
-        if(!this.isNameFree(name)) throw new Error(`Name "${name}" is already in use`);
+        if (!this.isPortFree(port)) throw new Error(`Port ${port} is busy`);
+        if (!this.isNameFree(name))
+            throw new Error(`Name "${name}" is already in use`);
 
         this.ports.add(port);
         this.names.add(name);
@@ -59,61 +60,64 @@ export class HooksManager {
                 PORT: port + "",
                 CONFIG: JSON.stringify(config),
             },
-            stdio: [
-                'ignore',
-                logsFile,
-                logsFile,
-                'ipc'
-            ]
-        })
+            stdio: ["ignore", logsFile, logsFile, "ipc"],
+        });
 
         try {
             const processData = await Promise.race([
-                new Promise<{ port: number, pid: number }>((resolve, reject) => {
-                    child.once('message', message => {
-                        const validation = childMessage.decode(message);
-    
-                        if(validation._tag === "Left"){
-                            return reject(new Error("Failed to decode message from the wing"))
-                        }
-    
-                        const data = validation.right;
-    
-                        switch(data.type) {
-                            case "STARTED":
-                                child.removeAllListeners();
-                                return resolve({
-                                    pid: data.pid,
-                                    port: data.port
-                                })
-                            
-                            case "FAILURE":
-                                child.removeAllListeners();
-                                reject(new Error("Failed to launch the wing:\n" + data.error));
-                        }
-                    })
-                }),
-                new Promise<{ port: number, pid: number }>((_, reject) => {
-                    child.once('error', (err) => {
+                new Promise<{ port: number; pid: number }>(
+                    (resolve, reject) => {
+                        child.once("message", (message) => {
+                            const validation = childMessage.decode(message);
+
+                            if (validation._tag === "Left") {
+                                return reject(
+                                    new Error(
+                                        "Failed to decode message from the wing",
+                                    ),
+                                );
+                            }
+
+                            const data = validation.right;
+
+                            switch (data.type) {
+                                case "STARTED":
+                                    child.removeAllListeners();
+                                    return resolve({
+                                        pid: data.pid,
+                                        port: data.port,
+                                    });
+
+                                case "FAILURE":
+                                    child.removeAllListeners();
+                                    reject(
+                                        new Error(
+                                            "Failed to launch the wing:\n" +
+                                                data.error,
+                                        ),
+                                    );
+                            }
+                        });
+                    },
+                ),
+                new Promise<{ port: number; pid: number }>((_, reject) => {
+                    child.once("error", (err) => {
                         console.log(err);
                         child.removeAllListeners();
                         reject(err);
-                    })
-                })
-            ])
+                    });
+                }),
+            ]);
 
-            this.hooks.set(
+            this.hooks.set(name, {
                 name,
-                {
-                    name,
-                    process: child,
-                    pid: processData.pid,
-                    port: processData.port
-                }
-            )
+                process: child,
+                pid: processData.pid,
+                port: processData.port,
+            });
 
             return processData;
-        } catch(e) {
+        } catch (e) {
             this.names.delete(name);
             this.ports.delete(port);
 
@@ -126,29 +130,33 @@ export class HooksManager {
 
     stop(name: string) {
         const hook = this.hooks.get(name);
-        if(!hook) throw new Error(`No wing with name "${name}"`)
+        if (!hook) throw new Error(`No wing with name "${name}"`);
 
         return new Promise<void>((resolve, reject) => {
-            hook.process.once('close', () => {
+            hook.process.once("close", () => {
                 this.ports.delete(hook.port);
                 this.names.delete(hook.name);
                 this.hooks.delete(hook.name);
                 resolve();
             });
-            if(!hook.process.kill()) {
+            if (!hook.process.kill()) {
                 hook.process.removeAllListeners();
                 console.error("FAILED_TO_KILL", {
                     ...hook,
-                    process: null
+                    process: null,
                 });
-                reject(new Error(`Failed to kill the process with PID ${hook.pid}`));
+                reject(
+                    new Error(
+                        `Failed to kill the process with PID ${hook.pid}`,
+                    ),
+                );
             }
-        })
+        });
     }
 
     async stopAll() {
         await Promise.all([
-            Array.from(this.hooks.keys()).map(name => this.stop(name))
-        ])
+            Array.from(this.hooks.keys()).map((name) => this.stop(name)),
+        ]);
     }
 }

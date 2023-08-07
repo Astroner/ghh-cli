@@ -23,20 +23,21 @@ export const launch: Executor<"launch"> = () => (ctx) =>
             ({ appData }) => !appData,
             () => new Error("Mother-ship is already launched"),
         ),
-        TaskEither.chainFirst(() => TaskEither.tryCatch(
-            () =>
-                new Promise<void>((resolve, reject) => {
-                    fs.mkdir(ctx.appDirectory, (err) => {
-                        if (!err || err.code === "EEXIST")
-                            resolve();
-                        else reject(err);
-                    });
-                }),
-            (err) =>
-                new Error(
-                    `Failed to create data directory at ${ctx.appDirectory}\n${err}`,
-                ),
-        )),
+        TaskEither.chainFirst(() =>
+            TaskEither.tryCatch(
+                () =>
+                    new Promise<void>((resolve, reject) => {
+                        fs.mkdir(ctx.appDirectory, (err) => {
+                            if (!err || err.code === "EEXIST") resolve();
+                            else reject(err);
+                        });
+                    }),
+                (err) =>
+                    new Error(
+                        `Failed to create data directory at ${ctx.appDirectory}\n${err}`,
+                    ),
+            ),
+        ),
         TaskEither.bind(
             "subprocess",
             flow(
@@ -48,7 +49,7 @@ export const launch: Executor<"launch"> = () => (ctx) =>
                                 {
                                     detached: true,
                                     env: {
-                                        FORCE_COLOR: "1"
+                                        FORCE_COLOR: "1",
                                     },
                                     cwd: ctx.appDirectory,
                                     stdio: [
