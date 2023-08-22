@@ -20,7 +20,7 @@
     }
   },
   "dependencies": {
-    "@dogonis/github-hook": "^1.0.11",
+    "@dogonis/github-hook": "^1.0.12",
     "axios": "^1.4.0",
     "chalk": "4.1.2",
     "chokidar": "^3.5.3",
